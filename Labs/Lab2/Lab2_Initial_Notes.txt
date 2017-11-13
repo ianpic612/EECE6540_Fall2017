@@ -1,0 +1,104 @@
+Lab 2 Thoughts
+
+Pi = (1/1 - 1/3) + (1/5 - 1/7) + (1/9 - 1/11) + ....
+
+Kernel adds x + y and stores the sum in z
+	x = 1 / inputX
+	y = x + 2
+
+Need to filter out even numbers
+	rem_X = x % 2
+	if rem_X = != 0 [should be 1] then proceed with computation
+	else (rem_X = 0) store output (z) as NULL
+
+Need to find a way to use index number without having the same ID numbers executed (eg only perform [1/1 - 1/3] operation once)
+	Have workgroup ID's as major ID number with work-items as minor ID number
+		X = workgroupID + workitemID (getglobalID (???))
+***	Understand getglobalID
+
+Need to find a way to remove the calculated y (x + 2) ID's (eg do not need to run 3, 7, 11, 15 ...)
+	Can combine removing odd and calulated y IDs
+	rem_X = ID % 4
+	if rem_X = 1 then proceed with calculation
+	else (rem_X != 1) then store z with NULL
+
+End of all only need results from global work-items 1, 5, 9, 13, 17, 21 ...
+
+Display z on the host side as a 1.4 float
+
+Formula only calculates Pi/4
+	Need to either multiple z before returning to host or done by the host
+		Device should be doing all the math so multiple result by 4 before returning to host
+
+Only one kernel:
+	Keep calls for platforms, devices, context, and command queues the same
+
+Need to update memory objects:
+	Need array for z returns
+	x, y, and z to be float (are local to the kernel and no arguments needed)
+	Need float for end results (done on host side)
+		for (i = 0; i < get_global_size; i++)
+			total_result += z[i]
+***	Understand get_global_size; ideally want largest work-item to know how many results were returned
+		Could increment an atomic_inc everytime a calucluation is performed and return value and store as comparitor in for loop
+	
+Need to store the return value from the kernel in the memory location (of z) equal to the global_work-item ID
+
+Need a list of kernel arguments:
+		output computation result stored in z
+OPTIONAL	output total_executions
+		output global_work-item value
+	
+Display the total_result with 1.4 float digits
+
+Free up memory objects and all other resources (platform, devices, context, command queues)
+
+Kernel should contain:
+	arguments (output result, output work_item_ID, OPTIONAL output total_executions)
+	initialization variables
+		int x = 0
+		int y = 0
+		int rem = 0
+		int wi_ID = 0
+		float result = 0
+OPTIONAL	int total_executions = 0
+		determine is computation is even needed
+***			wi_ID = getglobalID(*****)
+			rem = wi_ID % 4
+			if (rem = 1)
+				x = wi_ID
+				y = x + 2
+				result = [(1/x) - (1/y)] * 4
+OPTIONAL			atomic_inc
+*** 	If using atomic increment, need to know if a fence or barrier is needed
+			else (rem != 1)
+				result = 0
+OPTIONAL	Barrier / fence
+		add all executions across work-items; store in total_executions
+		exit
+
+Main should contain:
+	memory and variables
+	platforms
+	devices
+	context
+	command queues
+	program
+	memory objects
+	kernel
+	kernel arguments
+	workgroup and work-items size
+	building kernel
+	find max work_time ID
+	read return buffers (result, work_item_ID, and [OPTIONAL] total_executions)
+	store result in z[work_item_ID] location
+***		This might have to be done on device as host will only have one work_item_ID variable and not total_execution amount
+		Need to store in result[work_item_ID] and return the same as the first lab
+	sum up the result array
+		for (i = 0; i < total_execution or max_work-item; i++)
+		total_result += z[i]
+*** 	total_executions might as it will take out all the executions wil rem != 1 and only add the first rem = 1 executions which will not be the first consecutive elements in the results array
+	Need to either find the max_work-item or increment all the executions even if the results is returned as zero
+	display the result
+	free up resources
+	exit

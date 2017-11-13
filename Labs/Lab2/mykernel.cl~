@@ -1,0 +1,11 @@
+/* widthA = heightB for valid matrix multiplication */
+__kernel void simpleMultiply(
+    __global float *result_out)
+{
+    /* Get global position in Y direction */
+    int row = get_global_id (1);
+    /* Get global position in X direction */
+    int col = get_global_id (0);
+
+    result_out[2 * row + col] = 1.0f;
+}
